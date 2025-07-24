@@ -1,0 +1,17 @@
+SUBDIRS = shv-libs4c
+
+bin_PROGRAMS = shvfwup
+
+shvfwup_SOURCES = shv_fwupdater.c
+shvfwup_LIBS = shvtree shvchainpack ulut m z
+
+#nobase_include_HEADERS =
+
+#lib_LIBRARIES =
+#shared_LIBRARIES =
+#include_HEADERS  =
+#xxx_SOURCES =
+#lib_LOADLIBES =
+#bin_PROGRAMS =
+#utils_PROGRAMS =
+
