@@ -1,0 +1,29 @@
+#
+# For a description of the syntax of this configuration file,
+# see the file kconfig-language.txt in the NuttX tools repository.
+#
+
+menuconfig EXAMPLES_NX_SHV_FWUPDATER
+	bool "nx-shv-fwupdater"
+	default n
+	---help---
+		Enable the nx-shv-fwupdater application.
+
+if EXAMPLES_NX_SHV_FWUPDATER
+
+config EXAMPLES_NX_SHV_FWUPDATER_PROGNAME
+	string "nx-shv-fwupdater App Name"
+	default "nx_shv_fwupdater"
+	---help---
+		This is the name of the program that will be used when the NSH ELF
+		program is installed.
+
+config EXAMPLES_NX_SHV_FWUPDATER_PRIORITY
+	int "nx-shv-fwupdater task priority"
+	default 100
+
+config EXAMPLES_NX_SHV_FWUPDATER_STACKSIZE
+	int "nx-shv-fwupdater task stack size"
+	default 4096
+
+endif # EXAMPLES_NX_SHV_FWUPDATER
