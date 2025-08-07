@@ -6,6 +6,7 @@
 menuconfig EXAMPLES_NX_SHV_FWUPDATER
 	bool "nx-shv-fwupdater"
 	default n
+	depends on NETUTILS_LIBSHVC
 	---help---
 		Enable the nx-shv-fwupdater application.
 
