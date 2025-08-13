@@ -2,6 +2,7 @@
 #include <shv/tree/shv_file_com.h>
 #include <shv/tree/shv_connection.h>
 #include <shv/tree/shv_methods.h>
+#include <shv/tree/shv_clayer_posix.h>
 
 #include <stdio.h>
 #include <signal.h>
@@ -18,7 +19,23 @@
 #include <sys/boardctl.h>
 #endif
 
-sem_t running;
+static sem_t running;
+
+/* Custom definitions for the file node (NXBoot) */
+
+#ifdef __NuttX__
+static int shv_nxboot_opener(shv_file_node_t *item)
+{
+  struct shv_file_node_fctx *fctx = (struct shv_file_node_fctx*) item->fctx;
+  fctx->fd = nxboot_open_update_partition();
+  if (fctx->fd < 0)
+    {
+      return -1;
+    }
+  fctx->flags |= SHV_FILE_POSIX_BITFLAG_OPENED;
+  return 0;
+}
+#endif
 
 // ------------------------- ROOT METHODS ---------------------------------- //
 
@@ -67,7 +84,7 @@ const shv_dmap_t shv_dev_fwUpdate_dmap =
 int shv_dotdevice_name(shv_con_ctx_t *shv_ctx, shv_node_t *item, int rid)
 {
   shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
-  shv_send_str(shv_ctx, rid, "nx-shv-fwupdater");
+  shv_send_str(shv_ctx, rid, "shv-fwupdater");
   return 0;
 }
 
@@ -287,9 +304,12 @@ shv_node_t *shv_tree_create(void)
 
   fwUpdate_node->file_type = REGULAR;
 #ifdef __NuttX__
-  fwUpdate_node->name = "*NXBOOT_MTD*";
   fwUpdate_node->file_maxsize = geometry.erasesize * geometry.neraseblocks;
   fwUpdate_node->file_pagesize = geometry.blocksize;
+
+  /* Update the fops table in the file node */
+
+  fwUpdate_node->fops.opener = shv_nxboot_opener;
 #else
   fwUpdate_node->name = "./test.bin";
   fwUpdate_node->file_maxsize = 1 << 25; /* 32 MiB */
