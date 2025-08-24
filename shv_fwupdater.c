@@ -27,12 +27,17 @@ static sem_t running;
 static int shv_nxboot_opener(shv_file_node_t *item)
 {
   struct shv_file_node_fctx *fctx = (struct shv_file_node_fctx*) item->fctx;
-  fctx->fd = nxboot_open_update_partition();
-  if (fctx->fd < 0)
+  struct nxboot_state st;
+  if (!(fctx->flags & SHV_FILE_POSIX_BITFLAG_OPENED))
     {
-      return -1;
+      nxboot_get_state(&st);
+      fctx->fd = nxboot_open_update_partition();
+      if (fctx->fd < 0)
+        {
+          return -1;
+        }
+      fctx->flags |= SHV_FILE_POSIX_BITFLAG_OPENED;
     }
-  fctx->flags |= SHV_FILE_POSIX_BITFLAG_OPENED;
   return 0;
 }
 #endif
