@@ -1,8 +1,9 @@
 #include <shv/tree/shv_tree.h>
-#include <shv/tree/shv_file_com.h>
+#include <shv/tree/shv_file_node.h>
 #include <shv/tree/shv_connection.h>
 #include <shv/tree/shv_methods.h>
 #include <shv/tree/shv_clayer_posix.h>
+#include <shv/tree/shv_dotdevice_node.h>
 
 #include <stdio.h>
 #include <signal.h>
@@ -67,99 +68,6 @@ const shv_method_des_t * const shv_dev_root_dmap_items[] =
 
 const shv_dmap_t shv_dev_root_dmap =
   SHV_CREATE_NODE_DMAP(root, shv_dev_root_dmap_items);
-
-// ------------------------- fwUpdate METHODS ------------------------------ //
-
-
-const shv_method_des_t * const shv_dev_fwUpdate_dmap_items[] =
-{
-  &shv_dmap_item_file_node_crc,
-  &shv_dmap_item_dir,
-  &shv_dmap_item_ls,
-  &shv_dmap_item_file_node_size,
-  &shv_dmap_item_file_node_stat,
-  &shv_dmap_item_file_node_write
-};
-
-const shv_dmap_t shv_dev_fwUpdate_dmap =
-  SHV_CREATE_NODE_DMAP(fwUpdate, shv_dev_fwUpdate_dmap_items);
-
-// ------------------------- .dotdevice METHODS ---------------------------- //
-
-int shv_dotdevice_name(shv_con_ctx_t *shv_ctx, shv_node_t *item, int rid)
-{
-  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
-  shv_send_str(shv_ctx, rid, "shv-fwupdater");
-  return 0;
-}
-
-int shv_dotdevice_version(shv_con_ctx_t *shv_ctx, shv_node_t *item, int rid)
-{
-  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
-  shv_send_str(shv_ctx, rid, "0.1.0");
-  return 0;
-}
-
-int shv_dotdevice_uptime(shv_con_ctx_t *shv_ctx, shv_node_t *item, int rid)
-{
-  struct timespec t;
-  clock_gettime(CLOCK_MONOTONIC, &t);
-
-  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
-  shv_send_int(shv_ctx, rid, t.tv_sec);
-  return 0;
-}
-
-int shv_dotdevice_reset(shv_con_ctx_t *shv_ctx, shv_node_t *item, int rid)
-{
-  shv_unpack_data(&shv_ctx->unpack_ctx, 0, 0);
-  shv_send_int(shv_ctx, rid, 0);
-  printf("Performing reset in 2 seconds!\n");
-  fflush(stdout);
-  usleep(2000 * 1000);
-#ifdef __NuttX__
-  boardctl(BOARDIOC_RESET, BOARDIOC_RESETCAUSE_CPU_SOFT);
-#endif
-  /* On linux, this should do nothing. */
-  return 0;
-}
-
-const shv_method_des_t shv_dev_dotdevice_dmap_item_name =
-{
-  .name = "name",
-  .method = shv_dotdevice_name
-};
-
-const shv_method_des_t shv_dev_dotdevice_dmap_item_version =
-{
-  .name = "version",
-  .method = shv_dotdevice_version
-};
-
-const shv_method_des_t shv_dev_dotdevice_dmap_item_uptime =
-{
-  .name = "uptime",
-  .method = shv_dotdevice_uptime
-};
-
-const shv_method_des_t shv_dev_dotdevice_dmap_item_reset =
-{
-  .name = "reset",
-  .method = shv_dotdevice_reset
-};
-
-const shv_method_des_t * const shv_dev_dotdevice_dmap_items[] =
-{
-  &shv_dmap_item_dir,
-  &shv_dmap_item_ls,
-  &shv_dev_dotdevice_dmap_item_name,
-  &shv_dev_dotdevice_dmap_item_reset,
-  &shv_dev_dotdevice_dmap_item_uptime,
-  &shv_dev_dotdevice_dmap_item_version
-};
-
-const shv_dmap_t shv_dev_dotdevice_dmap =
-  SHV_CREATE_NODE_DMAP(dotdevice, shv_dev_dotdevice_dmap_items);
 
 // ------------------------- .app METHODS ---------------------------- //
 
@@ -262,7 +170,8 @@ const shv_dmap_t shv_dev_fwStable_dmap =
 
 shv_node_t *shv_tree_create(void)
 {
-  shv_node_t *tree_root, *dotdevice_node, *fwStable_node, *dotapp_node;
+  shv_node_t *tree_root, *fwStable_node, *dotapp_node;
+  shv_dotdevice_node_t *dotdevice_node;
   shv_file_node_t *fwUpdate_node;
 
 #ifdef __NuttX__
@@ -286,7 +195,7 @@ shv_node_t *shv_tree_create(void)
     }
 
   fwUpdate_node = shv_tree_file_node_new("fwUpdate",
-                                         &shv_dev_fwUpdate_dmap, 0);
+                                         &shv_file_node_dmap, 0);
   if (fwUpdate_node == NULL)
     {
 #ifdef __NuttX__
@@ -334,7 +243,7 @@ shv_node_t *shv_tree_create(void)
     }
   shv_tree_add_child(tree_root, dotapp_node);
 
-  dotdevice_node = shv_tree_node_new(".device", &shv_dev_dotdevice_dmap, 0);
+  dotdevice_node = shv_tree_dotdevice_node_new(&shv_dotdevice_dmap, 0);
   if (dotdevice_node == NULL)
     {
       free(tree_root);
@@ -342,7 +251,10 @@ shv_node_t *shv_tree_create(void)
       free(dotapp_node);
       return NULL;
     }
-  shv_tree_add_child(tree_root, dotdevice_node);
+  dotdevice_node->name = "SHV Compatible Device";
+  dotdevice_node->serial_number = "0xDEADBEEF";
+  dotdevice_node->version = "0.1.0";
+  shv_tree_add_child(tree_root, &dotdevice_node->shv_node);
 
   fwStable_node = shv_tree_node_new("fwStable", &shv_dev_fwStable_dmap, 0);
   if (fwStable_node == NULL)
