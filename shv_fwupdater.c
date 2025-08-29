@@ -28,10 +28,8 @@ static sem_t running;
 static int shv_nxboot_opener(shv_file_node_t *item)
 {
   struct shv_file_node_fctx *fctx = (struct shv_file_node_fctx*) item->fctx;
-  struct nxboot_state st;
   if (!(fctx->flags & SHV_FILE_POSIX_BITFLAG_OPENED))
     {
-      nxboot_get_state(&st);
       fctx->fd = nxboot_open_update_partition();
       if (fctx->fd < 0)
         {
@@ -216,11 +214,11 @@ shv_node_t *shv_tree_create(void)
     }
 #endif
 
-  fwUpdate_node->file_type = REGULAR;
+  fwUpdate_node->file_type = SHV_FILE_MTD;
 #ifdef __NuttX__
   fwUpdate_node->file_maxsize = geometry.erasesize * geometry.neraseblocks;
   fwUpdate_node->file_pagesize = geometry.blocksize;
-
+  fwUpdate_node->file_erasesize = geometry.erasesize;
   /* Update the fops table in the file node */
 
   fwUpdate_node->fops.opener = shv_nxboot_opener;
@@ -228,6 +226,7 @@ shv_node_t *shv_tree_create(void)
   fwUpdate_node->name = "./test.bin";
   fwUpdate_node->file_maxsize = 1 << 25; /* 32 MiB */
   fwUpdate_node->file_pagesize = 1024;
+  fwUpdate_node->file_erasesize = 4096;
 #endif
   shv_tree_add_child(tree_root, &fwUpdate_node->shv_node);
 #ifdef __NuttX__
